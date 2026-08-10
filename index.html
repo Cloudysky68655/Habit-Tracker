@@ -350,6 +350,25 @@
   .check-fill{ position:absolute; left:50%; top:50%; width:150%; height:150%; border-radius:50%; background: var(--fill-color, var(--sage)); pointer-events:none; transform:translate(-50%,-50%) scale(0); }
   .check-fill.animating{ animation: floodFill .42s cubic-bezier(.4,0,.2,1) forwards; }
   @keyframes floodFill{ to{ transform:translate(-50%,-50%) scale(1); } }
+
+  /* ---------- Perfect-day celebration ---------- */
+  .celebrate-flood{
+    position:fixed; inset:0; z-index:9998; pointer-events:none;
+    background: radial-gradient(circle at 50% 32%, var(--sage), var(--amber) 45%, transparent 72%);
+    opacity:0; transform:scale(.2);
+    animation: celebrateFlood 1.2s cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  @keyframes celebrateFlood{
+    0%{ opacity:0; transform:scale(.15); }
+    32%{ opacity:.5; transform:scale(1); }
+    100%{ opacity:0; transform:scale(1.5); }
+  }
+  .check.done.shine{ animation: checkShine .9s ease-in-out; }
+  @keyframes checkShine{
+    0%,100%{ box-shadow:0 0 0 0 transparent; }
+    45%{ box-shadow:0 0 16px 5px var(--fill-color, var(--amber)); }
+  }
+  @media (prefers-reduced-motion: reduce){ .celebrate-flood{ display:none; } .check.done.shine{ animation:none; } }
   .check.done{ border-color: var(--fill-color, var(--sage)); }
   .check.done .check-fill{ transform:translate(-50%,-50%) scale(1); }
   .check-icon{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(.4); z-index:1; pointer-events:none; }
@@ -663,6 +682,7 @@
   let showArchived = false;
   let justCompletedId = null;
   let justCompletedCellKey = null;
+  let celebrateToday = false;
 
   const COLORS = ['#E8A33D','#7FA98D','#C97066','#7E9CD8','#B48CC9','#D8A6D0'];
   const WD_LABELS = ['S','M','T','W','T','F','S'];
@@ -785,9 +805,28 @@
     setEntry(habitId, ds, {done: !done});
     justCompletedId = (turningOn && ds===todayStr()) ? habitId : null;
     justCompletedCellKey = turningOn ? (habitId+'|'+ds) : null;
+
+    celebrateToday = false;
+    if(turningOn && ds===todayStr()){
+      const day = activeHabitsOn(new Date());
+      if(day.length>0 && day.every(h=>isDone(ds,h.id))){
+        celebrateToday = true;
+      }
+    }
+
     render();
     justCompletedId = null;
     justCompletedCellKey = null;
+    if(celebrateToday){ triggerCelebration(); }
+    celebrateToday = false;
+  }
+
+  function triggerCelebration(){
+    const flood = document.createElement('div');
+    flood.className = 'celebrate-flood';
+    document.body.appendChild(flood);
+    flood.addEventListener('animationend', ()=> flood.remove());
+    setTimeout(()=>{ if(flood.parentNode) flood.remove(); }, 1600);
   }
 
   function computeStreak(habitId){
@@ -983,9 +1022,10 @@
       qtyHtml = `<input type="text" class="qty-input" inputmode="numeric" data-qty="${h.id}" value="${entry.qty||''}" placeholder="0"> <span style="font-size:11px;color:var(--ink-faint);">/ ${h.qty.target} ${escapeHtml(h.qty.unit||'')}</span>`;
     }
     const isPop = h.id === justCompletedId;
+    const shouldShine = celebrateToday && done && ds===todayStr();
     return `
       <div class="habit-row ${atRisk?'at-risk':''} ${h.archived?'archived':''}">
-        <div class="check ${done?'done':''}" data-toggle="${h.id}" style="--fill-color:${catColor(h)}">
+        <div class="check ${done?'done':''} ${shouldShine?'shine':''}" data-toggle="${h.id}" style="--fill-color:${catColor(h)}">
           <span class="check-fill ${isPop?'animating':''}"></span>
           <span class="check-icon ${isPop?'pop':''}"><svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"></polyline></svg></span>
         </div>
