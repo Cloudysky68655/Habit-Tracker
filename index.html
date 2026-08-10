@@ -804,12 +804,34 @@
     saveLog();
   }
 
+  let audioCtx = null;
+  function playTick(){
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1700, t);
+      osc.frequency.exponentialRampToValueAtTime(850, t + 0.045);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.16, t + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t);
+      osc.stop(t + 0.08);
+    }catch(e){ console.error('Tick sound failed:', e); }
+  }
+
   function toggleHabit(habitId, ds, originX, originY){
     const done = isDone(ds, habitId);
     const turningOn = !done;
     setEntry(habitId, ds, {done: !done});
     justCompletedId = (turningOn && ds===todayStr()) ? habitId : null;
     justCompletedCellKey = turningOn ? (habitId+'|'+ds) : null;
+    if(turningOn){ playTick(); }
 
     celebrateToday = false;
     if(turningOn && ds===todayStr()){
