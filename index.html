@@ -353,22 +353,26 @@
 
   /* ---------- Perfect-day celebration ---------- */
   .celebrate-flood{
-    position:fixed; inset:0; z-index:9998; pointer-events:none;
-    background: radial-gradient(circle at 50% 32%, var(--sage), var(--amber) 45%, transparent 72%);
-    opacity:0; transform:scale(.2);
-    animation: celebrateFlood 1.2s cubic-bezier(.2,.8,.2,1) forwards;
+    position:fixed; top:0; left:0; width:36px; height:36px; margin:-18px 0 0 -18px;
+    border-radius:50%; z-index:9998; pointer-events:none;
+    background: radial-gradient(circle, var(--amber), var(--sage) 75%);
+    opacity:.65; transform:scale(0);
+    animation: celebrateFlood 2.6s cubic-bezier(.16,.7,.2,1) forwards;
   }
   @keyframes celebrateFlood{
-    0%{ opacity:0; transform:scale(.15); }
-    32%{ opacity:.5; transform:scale(1); }
-    100%{ opacity:0; transform:scale(1.5); }
+    0%{ transform:scale(0); opacity:.7; }
+    55%{ opacity:.5; }
+    100%{ transform:scale(var(--flood-scale, 60)); opacity:0; }
   }
-  .check.done.shine{ animation: checkShine .9s ease-in-out; }
-  @keyframes checkShine{
-    0%,100%{ box-shadow:0 0 0 0 transparent; }
-    45%{ box-shadow:0 0 16px 5px var(--fill-color, var(--amber)); }
+  .check.done.day-glow{
+    box-shadow: 0 0 12px 3px var(--fill-color, var(--amber));
+    animation: checkGlowPulse 2.4s ease-in-out infinite;
   }
-  @media (prefers-reduced-motion: reduce){ .celebrate-flood{ display:none; } .check.done.shine{ animation:none; } }
+  @keyframes checkGlowPulse{
+    0%,100%{ box-shadow: 0 0 8px 2px var(--fill-color, var(--amber)); }
+    50%{ box-shadow: 0 0 16px 5px var(--fill-color, var(--amber)); }
+  }
+  @media (prefers-reduced-motion: reduce){ .celebrate-flood{ display:none; } .check.done.day-glow{ animation:none; box-shadow:0 0 10px 3px var(--fill-color, var(--amber)); } }
   .check.done{ border-color: var(--fill-color, var(--sage)); }
   .check.done .check-fill{ transform:translate(-50%,-50%) scale(1); }
   .check-icon{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(.4); z-index:1; pointer-events:none; }
@@ -683,6 +687,7 @@
   let justCompletedId = null;
   let justCompletedCellKey = null;
   let celebrateToday = false;
+  let todayIsPerfect = false;
 
   const COLORS = ['#E8A33D','#7FA98D','#C97066','#7E9CD8','#B48CC9','#D8A6D0'];
   const WD_LABELS = ['S','M','T','W','T','F','S'];
@@ -799,7 +804,7 @@
     saveLog();
   }
 
-  function toggleHabit(habitId, ds){
+  function toggleHabit(habitId, ds, originX, originY){
     const done = isDone(ds, habitId);
     const turningOn = !done;
     setEntry(habitId, ds, {done: !done});
@@ -817,16 +822,26 @@
     render();
     justCompletedId = null;
     justCompletedCellKey = null;
-    if(celebrateToday){ triggerCelebration(); }
+    if(celebrateToday){ triggerCelebration(originX, originY); }
     celebrateToday = false;
   }
 
-  function triggerCelebration(){
+  function triggerCelebration(originX, originY){
+    const x = (typeof originX==='number') ? originX : window.innerWidth/2;
+    const y = (typeof originY==='number') ? originY : window.innerHeight*0.32;
+    const farX = Math.max(x, window.innerWidth - x);
+    const farY = Math.max(y, window.innerHeight - y);
+    const maxDist = Math.sqrt(farX*farX + farY*farY);
+    const scale = (maxDist / 18) * 1.15; // base circle radius is 18px; pad a bit past the farthest corner
+
     const flood = document.createElement('div');
     flood.className = 'celebrate-flood';
+    flood.style.left = x + 'px';
+    flood.style.top = y + 'px';
+    flood.style.setProperty('--flood-scale', scale);
     document.body.appendChild(flood);
     flood.addEventListener('animationend', ()=> flood.remove());
-    setTimeout(()=>{ if(flood.parentNode) flood.remove(); }, 1600);
+    setTimeout(()=>{ if(flood.parentNode) flood.remove(); }, 3000);
   }
 
   function computeStreak(habitId){
@@ -1022,10 +1037,10 @@
       qtyHtml = `<input type="text" class="qty-input" inputmode="numeric" data-qty="${h.id}" value="${entry.qty||''}" placeholder="0"> <span style="font-size:11px;color:var(--ink-faint);">/ ${h.qty.target} ${escapeHtml(h.qty.unit||'')}</span>`;
     }
     const isPop = h.id === justCompletedId;
-    const shouldShine = celebrateToday && done && ds===todayStr();
+    const shouldGlow = todayIsPerfect && done && ds===todayStr();
     return `
       <div class="habit-row ${atRisk?'at-risk':''} ${h.archived?'archived':''}">
-        <div class="check ${done?'done':''} ${shouldShine?'shine':''}" data-toggle="${h.id}" style="--fill-color:${catColor(h)}">
+        <div class="check ${done?'done':''} ${shouldGlow?'day-glow':''}" data-toggle="${h.id}" style="--fill-color:${catColor(h)}">
           <span class="check-fill ${isPop?'animating':''}"></span>
           <span class="check-icon ${isPop?'pop':''}"><svg viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"></polyline></svg></span>
         </div>
@@ -1065,6 +1080,8 @@
     const list = document.getElementById('habitList');
     const ds = todayStr();
     const active = habits.filter(h=>!h.archived).sort((a,b)=>a.order-b.order);
+    const todaysDue = activeHabitsOn(new Date());
+    todayIsPerfect = todaysDue.length>0 && todaysDue.every(h=>isDone(ds,h.id));
     if(active.length===0){
       list.innerHTML = '<div class="empty"><div class="empty-icon">'+iconPlant()+'</div>The ledger is empty. Add a habit below to begin.</div>';
     } else {
@@ -1089,7 +1106,7 @@
   }
 
   function attachRowEvents(container, ds){
-    container.querySelectorAll('[data-toggle]').forEach(el=> el.addEventListener('click', ()=> toggleHabit(el.dataset.toggle, ds)));
+    container.querySelectorAll('[data-toggle]').forEach(el=> el.addEventListener('click', (e)=> toggleHabit(el.dataset.toggle, ds, e.clientX, e.clientY)));
     container.querySelectorAll('[data-archive]').forEach(el=> el.addEventListener('click', ()=>{
       const h = habits.find(x=>x.id===el.dataset.archive);
       h.archived = !h.archived;
@@ -1170,9 +1187,9 @@
       rows += '</tr>';
     });
     table.innerHTML = thead+rows;
-    table.querySelectorAll('[data-mtoggle]').forEach(el=> el.addEventListener('click', ()=>{
+    table.querySelectorAll('[data-mtoggle]').forEach(el=> el.addEventListener('click', (e)=>{
       const [hid,ds] = el.dataset.mtoggle.split('|');
-      toggleHabit(hid,ds);
+      toggleHabit(hid,ds,e.clientX,e.clientY);
     }));
 
     renderCategoryMonthGrid(active, year, month, daysInMonth, todayDs, perfectDays);
