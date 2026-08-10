@@ -390,14 +390,12 @@
   .habit-meta .streak-tag{ color: var(--amber); }
   .qty-input{ width:56px; background:var(--bg-raised); border:1px solid var(--line); border-radius:6px; color:var(--ink); font-family:'Nunito',sans-serif; font-size:12px; padding:4px 6px; text-align:center; }
   .note-btn{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:13px; padding:2px 4px; }
-  .note-btn.has-note{ color:var(--amber); }
+  .note-btn:hover{ color:var(--amber); }
   .row-actions{ display:flex; flex-direction:column; gap:2px; }
   .row-actions button{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:11px; padding:1px 4px; line-height:1; }
   .row-actions button:hover{ color:var(--amber); }
   .habit-del{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:15px; padding:4px 6px; }
   .habit-del:hover{ color: var(--rose); }
-  .note-field{ width:100%; margin-top:8px; background:var(--bg-raised); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--ink); font-family:'Nunito',sans-serif; font-size:12.5px; display:none; }
-  .note-field.open{ display:block; }
 
   .add-card{ background: var(--bg-card); border:1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-top:14px; }
   .add-card input[type=text]{ width:100%; background: var(--bg-raised); border:1px solid var(--line); border-radius:10px; padding:11px 14px; color:var(--ink); font-family:'Nunito',sans-serif; font-size:14px; margin-bottom:10px; }
@@ -485,6 +483,33 @@
   .catgrid-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 
   input[type=file]{ display:none; }
+
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; z-index:9997; background:rgba(0,0,0,.55);
+    align-items:flex-end; justify-content:center; backdrop-filter:blur(3px);
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal-card{
+    background: var(--bg-card); border:1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
+    padding:20px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+    box-shadow:0 -10px 40px rgba(0,0,0,.4); animation: modalSlideUp .25s ease-out;
+  }
+  @keyframes modalSlideUp{ from{ transform:translateY(24px); opacity:.4; } to{ transform:translateY(0); opacity:1; } }
+  @media (min-width:600px){
+    .modal-backdrop{ align-items:center; }
+    .modal-card{ border-radius: var(--radius); }
+  }
+  .modal-title{ font-family:'Fraunces',serif; font-size:19px; margin-bottom:14px; color:var(--ink); }
+  .modal-cancel-btn{
+    width:100%; background:none; border:1px solid var(--line); color:var(--ink-dim); border-radius:10px;
+    padding:10px 20px; font-weight:600; cursor:pointer; font-size:13px; margin-top:8px; font-family:'Nunito',sans-serif;
+  }
+  .modal-cancel-btn:hover{ border-color:var(--ink-dim); }
+  .modal-delete-btn{
+    width:100%; background:none; border:none; color:var(--rose); cursor:pointer; font-size:12.5px;
+    margin-top:14px; padding:6px; font-family:'Nunito',sans-serif; text-decoration:underline; text-underline-offset:2px;
+  }
+  .modal-delete-btn:hover{ color:#e0473d; }
 
   @media (max-width:600px){
     h1{ font-size:26px; }
@@ -678,6 +703,59 @@
 
 </div>
 
+<div class="modal-backdrop" id="editModalBackdrop">
+  <div class="modal-card">
+    <div class="modal-title">Edit habit</div>
+
+    <div class="name-icon-row">
+      <input type="text" class="icon-pick-btn" id="editIconInput" placeholder="✨" maxlength="8">
+      <input type="text" id="editNameInput" placeholder="Habit name" maxlength="60">
+    </div>
+
+    <div class="add-row-flex">
+      <div class="field-group">
+        <label class="field-label">Category</label>
+        <input type="text" id="editCategoryInput" list="categoryDatalist" placeholder="e.g. Medicine" maxlength="24">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Color</label>
+        <div class="color-picker" id="editColorPicker"></div>
+      </div>
+    </div>
+
+    <div class="field-group" style="margin-bottom:10px;">
+      <label class="field-label">Frequency</label>
+      <select id="editFreqType">
+        <option value="daily">Every day</option>
+        <option value="weekdays">Specific weekdays</option>
+        <option value="xperweek">X times per week</option>
+      </select>
+    </div>
+
+    <div class="field-group" id="editWeekdayField" style="display:none; margin-bottom:10px;">
+      <label class="field-label">Which days</label>
+      <div class="weekday-picker" id="editWeekdayPicker"></div>
+    </div>
+
+    <div class="field-group" id="editXperweekField" style="display:none; margin-bottom:10px;">
+      <label class="field-label">Times per week</label>
+      <input type="text" id="editXperweekInput" inputmode="numeric" placeholder="3" style="width:100%; background:var(--bg-raised); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--ink);">
+    </div>
+
+    <div class="qty-toggle">
+      <input type="checkbox" id="editQtyToggle"> Track a number instead of just done/not done
+    </div>
+    <div class="qty-fields" id="editQtyFields">
+      <input type="text" id="editQtyTarget" placeholder="Target, e.g. 20" style="flex:1;">
+      <input type="text" id="editQtyUnit" placeholder="Unit, e.g. pages" style="flex:1;">
+    </div>
+
+    <button class="submit-btn" id="editSaveBtn">Save changes</button>
+    <button class="modal-cancel-btn" id="editCancelBtn">Cancel</button>
+    <button class="modal-delete-btn" id="editDeleteBtn">Delete permanently</button>
+  </div>
+</div>
+
 <script>
 (function(){
   let habits = [];
@@ -696,7 +774,9 @@
   const HABIT_ICON_CHOICES = ['💧','📖','🏃','🧘','🕌','😴','🥗','✍️','💊','🧠','🦷','🏋️','🎯','📚','🧬','🩺','🫁','🦴','🧪','☀️','🌙','🎨','🧹','💰','📞','🚭','🚶','🧴','🎵','🙏'];
   function iconArchive(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg>'; }
   function iconRestore(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline></svg>'; }
-  function iconNote(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg>'; }
+  function iconNote(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10.5L21 16.5V5a2 2 0 0 0-2-2z"></path><path d="M15 21v-5a1 1 0 0 1 1-1h5"></path></svg>'; }
+  function iconEdit(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg>'; }
+  function iconTrash(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>'; }
   function iconChevronUp(){ return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>'; }
   function iconChevronDown(){ return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'; }
   function iconPlant(){ return '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-9"></path><path d="M12 13c0-4 3-6 7-6 0 4-3 7-7 7"></path><path d="M12 13C12 9 9 7 5 7c0 4 3 7 7 7"></path></svg>'; }
@@ -1053,7 +1133,6 @@
     const scheduled = isScheduled(h, new Date());
     const hour = new Date().getHours();
     const atRisk = scheduled && !done && hour>=18 && !h.archived;
-    const noteOpen = entry.note ? 'open' : '';
     let qtyHtml='';
     if(h.qty){
       qtyHtml = `<input type="text" class="qty-input" inputmode="numeric" data-qty="${h.id}" value="${entry.qty||''}" placeholder="0"> <span style="font-size:11px;color:var(--ink-faint);">/ ${h.qty.target} ${escapeHtml(h.qty.unit||'')}</span>`;
@@ -1079,9 +1158,8 @@
             <span>${freqLabel(h)}</span>
           </div>
           ${qtyHtml?`<div style="margin-top:6px;">${qtyHtml}</div>`:''}
-          <textarea class="note-field ${noteOpen}" data-note="${h.id}" placeholder="Add a note for today...">${escapeHtml(entry.note||'')}</textarea>
         </div>
-        <button class="note-btn ${entry.note?'has-note':''}" data-notetoggle="${h.id}" title="Note">${iconNote()}</button>
+        <button class="note-btn" data-edit="${h.id}" title="Edit habit">${iconEdit()}</button>
         <div class="row-actions">
           <button data-up="${h.id}" title="Move up">${iconChevronUp()}</button>
           <button data-down="${h.id}" title="Move down">${iconChevronDown()}</button>
@@ -1134,13 +1212,6 @@
       h.archived = !h.archived;
       saveHabits(); render();
     }));
-    container.querySelectorAll('[data-notetoggle]').forEach(el=> el.addEventListener('click', ()=>{
-      const field = container.querySelector(`[data-note="${el.dataset.notetoggle}"]`);
-      field.classList.toggle('open');
-    }));
-    container.querySelectorAll('[data-note]').forEach(el=> el.addEventListener('change', ()=>{
-      setEntry(el.dataset.note, ds, {note: el.value});
-    }));
     container.querySelectorAll('[data-qty]').forEach(el=> el.addEventListener('change', ()=>{
       const val = parseFloat(el.value)||0;
       const h = habits.find(x=>x.id===el.dataset.qty);
@@ -1149,6 +1220,7 @@
     }));
     container.querySelectorAll('[data-up]').forEach(el=> el.addEventListener('click', ()=> reorder(el.dataset.up,-1)));
     container.querySelectorAll('[data-down]').forEach(el=> el.addEventListener('click', ()=> reorder(el.dataset.down,1)));
+    container.querySelectorAll('[data-edit]').forEach(el=> el.addEventListener('click', ()=> openEditModal(el.dataset.edit)));
   }
 
   function reorder(habitId, dir){
@@ -1363,6 +1435,121 @@
 
   document.getElementById('archiveToggle').addEventListener('click', ()=>{
     showArchived = !showArchived; renderHabitList();
+  });
+
+  // ---------- Edit habit modal ----------
+  let editingHabitId = null;
+  let editSelectedColor = COLORS[0];
+  let editSelectedWeekdays = new Set([1,2,3,4,5]);
+
+  const editColorPicker = document.getElementById('editColorPicker');
+  editColorPicker.innerHTML = COLORS.map(c=>`<div class="color-swatch" style="background:${c};" data-color="${c}"></div>`).join('');
+  editColorPicker.querySelectorAll('[data-color]').forEach(el=> el.addEventListener('click', ()=>{
+    editSelectedColor = el.dataset.color;
+    editColorPicker.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
+    el.classList.add('active');
+  }));
+
+  const editWeekdayPicker = document.getElementById('editWeekdayPicker');
+  editWeekdayPicker.innerHTML = WD_LABELS.map((l,i)=>`<div class="wd-btn" data-wd="${i}">${l}</div>`).join('');
+  editWeekdayPicker.querySelectorAll('[data-wd]').forEach(el=> el.addEventListener('click', ()=>{
+    const i = parseInt(el.dataset.wd);
+    if(editSelectedWeekdays.has(i)) editSelectedWeekdays.delete(i); else editSelectedWeekdays.add(i);
+    el.classList.toggle('active');
+  }));
+
+  document.getElementById('editFreqType').addEventListener('change', e=>{
+    document.getElementById('editWeekdayField').style.display = e.target.value==='weekdays'?'block':'none';
+    document.getElementById('editXperweekField').style.display = e.target.value==='xperweek'?'block':'none';
+  });
+  document.getElementById('editQtyToggle').addEventListener('change', e=>{
+    document.getElementById('editQtyFields').classList.toggle('open', e.target.checked);
+  });
+
+  function openEditModal(habitId){
+    const h = habits.find(x=>x.id===habitId);
+    if(!h) return;
+    editingHabitId = habitId;
+
+    document.getElementById('editIconInput').value = h.icon || '';
+    document.getElementById('editNameInput').value = h.name;
+    document.getElementById('editCategoryInput').value = h.category || '';
+
+    editSelectedColor = h.color || COLORS[0];
+    editColorPicker.querySelectorAll('.color-swatch').forEach(s=> s.classList.toggle('active', s.dataset.color===editSelectedColor));
+
+    const f = h.frequency || {type:'daily'};
+    document.getElementById('editFreqType').value = f.type;
+    document.getElementById('editWeekdayField').style.display = f.type==='weekdays' ? 'block' : 'none';
+    document.getElementById('editXperweekField').style.display = f.type==='xperweek' ? 'block' : 'none';
+    editSelectedWeekdays = new Set(f.type==='weekdays' ? (f.days||[]) : [1,2,3,4,5]);
+    editWeekdayPicker.querySelectorAll('.wd-btn').forEach(el=>{
+      el.classList.toggle('active', editSelectedWeekdays.has(parseInt(el.dataset.wd)));
+    });
+    document.getElementById('editXperweekInput').value = f.timesPerWeek || 3;
+
+    const qtyToggle = document.getElementById('editQtyToggle');
+    qtyToggle.checked = !!h.qty;
+    document.getElementById('editQtyFields').classList.toggle('open', !!h.qty);
+    document.getElementById('editQtyTarget').value = h.qty ? h.qty.target : '';
+    document.getElementById('editQtyUnit').value = h.qty ? (h.qty.unit||'') : '';
+
+    document.getElementById('editModalBackdrop').classList.add('open');
+  }
+
+  function closeEditModal(){
+    document.getElementById('editModalBackdrop').classList.remove('open');
+    editingHabitId = null;
+  }
+
+  document.getElementById('editCancelBtn').addEventListener('click', closeEditModal);
+  document.getElementById('editModalBackdrop').addEventListener('click', (e)=>{
+    if(e.target.id==='editModalBackdrop') closeEditModal();
+  });
+
+  document.getElementById('editSaveBtn').addEventListener('click', ()=>{
+    const h = habits.find(x=>x.id===editingHabitId);
+    if(!h) return;
+    const name = document.getElementById('editNameInput').value.trim();
+    if(!name) return;
+
+    h.name = name;
+    h.icon = document.getElementById('editIconInput').value.trim() || null;
+    h.category = document.getElementById('editCategoryInput').value.trim() || 'Other';
+    h.color = editSelectedColor;
+
+    const freqType = document.getElementById('editFreqType').value;
+    const frequency = {type:freqType};
+    if(freqType==='weekdays') frequency.days = Array.from(editSelectedWeekdays);
+    if(freqType==='xperweek') frequency.timesPerWeek = parseInt(document.getElementById('editXperweekInput').value)||3;
+    h.frequency = frequency;
+
+    if(document.getElementById('editQtyToggle').checked){
+      h.qty = { target: parseFloat(document.getElementById('editQtyTarget').value)||1, unit: document.getElementById('editQtyUnit').value.trim() };
+    } else {
+      h.qty = null;
+    }
+
+    saveHabits();
+    closeEditModal();
+    render();
+  });
+
+  document.getElementById('editDeleteBtn').addEventListener('click', ()=>{
+    const h = habits.find(x=>x.id===editingHabitId);
+    if(!h) return;
+    if(!confirm(`Permanently delete "${h.name}"? This removes all of its history too. This can't be undone.`)) return;
+    habits = habits.filter(x=>x.id!==editingHabitId);
+    Object.keys(log).forEach(ds=>{
+      if(log[ds][editingHabitId]){
+        delete log[ds][editingHabitId];
+        if(Object.keys(log[ds]).length===0) delete log[ds];
+      }
+    });
+    saveHabits();
+    saveLog();
+    closeEditModal();
+    render();
   });
 
   document.querySelectorAll('.tab').forEach(tab=> tab.addEventListener('click', ()=>{
