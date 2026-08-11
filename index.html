@@ -349,7 +349,14 @@
     padding:5px 10px; border-radius:6px; cursor:pointer;
   }
   .groupby-btn.active{ background:var(--amber-dim); color:var(--amber); }
-  .time-heading{ font-family:'Quicksand',sans-serif; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin: 18px 0 8px; display:flex; align-items:center; gap:6px; }
+  .time-heading{ font-family:'Quicksand',sans-serif; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin: 18px 0 8px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .slot-reorder{ display:flex; gap:2px; }
+  .slot-reorder button{
+    background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:2px 4px; display:flex;
+    align-items:center; opacity:.7;
+  }
+  .slot-reorder button:hover:not(:disabled){ color:var(--amber); opacity:1; }
+  .slot-reorder button:disabled{ opacity:.2; cursor:default; }
   .cat-dot{ width:8px; height:8px; border-radius:50%; }
 
   .habit-row{ display:flex; align-items:center; gap:12px; background: var(--bg-card); border:1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom:10px; position:relative; }
@@ -791,6 +798,9 @@
   let showArchived = false;
   let groupMode = 'category';
   try{ groupMode = localStorage.getItem('ledger_groupMode') || 'category'; }catch(e){}
+  let timeSlotOrder = [];
+  try{ const stored = localStorage.getItem('ledger_timeSlotOrder'); timeSlotOrder = stored ? JSON.parse(stored) : []; }catch(e){ timeSlotOrder = []; }
+  function saveTimeSlotOrder(){ try{ localStorage.setItem('ledger_timeSlotOrder', JSON.stringify(timeSlotOrder)); }catch(e){ console.error(e); } }
   let justCompletedId = null;
   let justCompletedCellKey = null;
   let celebrateToday = false;
@@ -1228,23 +1238,39 @@
     if(active.length===0){
       list.innerHTML = '<div class="empty"><div class="empty-icon">'+iconPlant()+'</div>The ledger is empty. Add a habit below to begin.</div>';
     } else if(groupMode==='time'){
-      // Slot order follows the user's own habit order (drag/reorder controls this) — no assumed chronology.
       const byTime = {};
       const withoutTime = [];
       active.forEach(h=>{
         if(h.time){ (byTime[h.time]=byTime[h.time]||[]).push(h); }
         else { withoutTime.push(h); }
       });
+      const slots = Object.keys(byTime);
+      // Keep timeSlotOrder in sync: append any new slots, drop ones no longer in use.
+      let changed = false;
+      slots.forEach(s=>{ if(!timeSlotOrder.includes(s)){ timeSlotOrder.push(s); changed = true; } });
+      const before = timeSlotOrder.length;
+      timeSlotOrder = timeSlotOrder.filter(s=> slots.includes(s));
+      if(timeSlotOrder.length !== before) changed = true;
+      if(changed) saveTimeSlotOrder();
+
       let html='';
-      Object.keys(byTime).forEach(t=>{
-        html += `<div class="time-heading">🕐 ${escapeHtml(t)}</div>`;
+      timeSlotOrder.forEach((t,i)=>{
+        html += `<div class="time-heading">
+          <span>🕐 ${escapeHtml(t)}</span>
+          <span class="slot-reorder">
+            <button data-slotup="${escapeHtml(t)}" title="Move slot up" ${i===0?'disabled':''}>${iconChevronUp()}</button>
+            <button data-slotdown="${escapeHtml(t)}" title="Move slot down" ${i===timeSlotOrder.length-1?'disabled':''}>${iconChevronDown()}</button>
+          </span>
+        </div>`;
         html += byTime[t].map(h=>habitRowHtml(h,ds)).join('');
       });
       if(withoutTime.length>0){
-        html += `<div class="time-heading">✨ Anytime</div>`;
+        html += `<div class="time-heading"><span>✨ Anytime</span></div>`;
         html += withoutTime.map(h=>habitRowHtml(h,ds)).join('');
       }
       list.innerHTML = html;
+      list.querySelectorAll('[data-slotup]').forEach(el=> el.addEventListener('click', ()=> reorderSlot(el.dataset.slotup,-1)));
+      list.querySelectorAll('[data-slotdown]').forEach(el=> el.addEventListener('click', ()=> reorderSlot(el.dataset.slotdown,1)));
     } else {
       const byCat = {};
       active.forEach(h=>{ const c=h.category||'Other'; (byCat[c]=byCat[c]||[]).push(h); });
@@ -1292,6 +1318,18 @@
     const a=sorted[idx], b=sorted[swapIdx];
     const tmp=a.order; a.order=b.order; b.order=tmp;
     saveHabits(); render();
+  }
+
+  function reorderSlot(slotName, dir){
+    const idx = timeSlotOrder.indexOf(slotName);
+    if(idx<0) return;
+    const swapIdx = idx+dir;
+    if(swapIdx<0 || swapIdx>=timeSlotOrder.length) return;
+    const tmp = timeSlotOrder[idx];
+    timeSlotOrder[idx] = timeSlotOrder[swapIdx];
+    timeSlotOrder[swapIdx] = tmp;
+    saveTimeSlotOrder();
+    renderHabitList();
   }
 
   function isPerfectDay(dateObj){
